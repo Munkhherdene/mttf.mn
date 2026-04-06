@@ -170,7 +170,7 @@ async function updatePlayerRating(playerId, opponentId, won) {
     // Update ratings
     const updateQuery = `
       UPDATE players
-      SET rating = $1, peak_rating = GREATEST(peak_rating, $1), updated_at = CURRENT_TIMESTAMP
+      SET rating = $1, peak_rating = CASE WHEN peak_rating > $1 THEN peak_rating ELSE $1 END, updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
     `;
     await client.query(updateQuery, [newRatings.player1Rating, playerId]);
@@ -223,10 +223,9 @@ async function getPlayerRankings(limit = 50, offset = 0) {
     SELECT p.id, p.name, p.rating, p.peak_rating, p.total_matches, p.wins, p.losses,
            p.club, p.nationality,
            CASE WHEN p.total_matches > 0 
-                THEN ROUND((p.wins::NUMERIC / p.total_matches) * 100, 2)
+                THEN ROUND((CAST(p.wins AS FLOAT) / p.total_matches) * 100, 2)
                 ELSE 0 
-           END as win_rate,
-           ROW_NUMBER() OVER (ORDER BY p.rating DESC) as rank
+           END as win_rate
     FROM players p
     ORDER BY p.rating DESC
     LIMIT $1 OFFSET $2
